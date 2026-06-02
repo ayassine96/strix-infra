@@ -1,0 +1,271 @@
+services:
+  strix-backend:
+    image: kyuz0/amd-strix-halo-toolboxes:rocm-7.2.3
+    container_name: strix-backend
+    restart: unless-stopped
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - "44"
+      - "992"
+    security_opt:
+      - seccomp=unconfined
+    ulimits:
+      memlock: -1
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=11.5.1
+      - ROCBLAS_USE_HIPBLASLT=1
+    volumes:
+      - ~/Desktop/models:/models:ro
+      - ./models.ini:/models.ini:ro
+    command:
+      - llama-server
+      - --models-preset
+      - /models.ini
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8081"
+      - --models-max
+      - "3"
+      - --flash-attn
+      - "on"
+      - --no-mmap
+      - --mlock
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --jinja
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 60s
+
+  gateway:
+    build: ./gateway
+    container_name: strix-gateway
+    restart: unless-stopped
+    environment:
+      - LLAMA_SERVER_URL=http://strix-backend:8081
+    ports:
+      - "8082:8080"
+    depends_on:
+      strix-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  letta:
+    image: lettaai/letta:latest
+    container_name: letta
+    restart: unless-stopped
+    environment:
+      - LETTA_LLM_ENDPOINT=http://gateway:8080/v1
+      - LETTA_LLM_API_KEY=strix-local
+      - LETTA_LLM_DEFAULT_MODEL=orchestrator-Qwen2.5-72B-Instruct-Q4_K_M
+      - LETTA_EMBEDDING_ENDPOINT=http://gateway:8080/v1
+      - LETTA_EMBEDDING_MODEL=fast-Carnice-9b-Q8_0
+      - PORT=8283
+    volumes:
+      - letta-data:/var/lib/letta
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "8283:8283"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8283/v1/models || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    environment:
+      - OPENAI_API_BASE_URL=http://gateway:8080/v1
+      - OPENAI_API_KEY=strix-local
+      - WEBUI_AUTH=True
+      - ENABLE_OAUTH_SIGNUP=True
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      gateway:
+        condition: service_healthy
+    ports:
+      - "3000:8080"
+
+  hermes:
+    build: ./hermes
+    container_name: hermes
+    restart: unless-stopped
+    environment:
+      - HERMES_LLM_PROVIDER=custom
+      - HERMES_LLM_BASE_URL=http://gateway:8080/v1
+      - HERMES_LLM_API_KEY=strix-local
+      - HERMES_LLM_MODEL=dev-Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL
+    volumes:
+      - ./hermes/config.yaml:/root/.hermes/config.yaml:ro
+      - hermes-data:/root/.hermes
+      - ~/Projects:/workspace:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+volumes:
+  open-webui-data:
+  letta-data:
+  hermes-data:
+
+# services:
+#   strix-backend:
+#     image: kyuz0/amd-strix-halo-toolboxes:rocm-7.2.3
+#     container_name: strix-backend
+#     restart: unless-stopped
+#     devices:
+#       - /dev/kfd:/dev/kfd
+#       - /dev/dri:/dev/dri
+#     group_add:
+#       - "44"
+#       - "992"
+#     security_opt:
+#       - seccomp=unconfined
+#     ulimits:
+#       memlock: -1
+#     environment:
+#       - HSA_OVERRIDE_GFX_VERSION=11.5.1
+#       - ROCBLAS_USE_HIPBLASLT=1
+#     volumes:
+#       - ~/Desktop/models:/models:ro
+#       - ./models.ini:/models.ini:ro
+#     command:
+#       - llama-server
+#       - --models-preset
+#       - /models.ini
+#       - --host
+#       - 0.0.0.0
+#       - --port
+#       - "8081"
+#       - --models-max
+#       - "3"
+#       - --flash-attn
+#       - "on"
+#       - --no-mmap
+#       - --mlock
+#       - --cache-type-k
+#       - q8_0
+#       - --cache-type-v
+#       - q8_0
+#       - --jinja
+#     ports:
+#       - "8081:8081"
+
+#   gateway:
+#     build: ./gateway
+#     container_name: strix-gateway
+#     restart: unless-stopped
+#     environment:
+#       - LLAMA_SERVER_URL=http://strix-backend:8081
+#     ports:
+#       - "8082:8080"
+#     depends_on:
+#       - strix-backend
+
+#   letta:
+#     image: lettaai/letta:latest
+#     container_name: letta
+#     restart: unless-stopped
+#     environment:
+#       - LETTA_LLM_ENDPOINT=http://gateway:8080/v1
+#       - LETTA_LLM_API_KEY=strix-local
+#       - LETTA_LLM_DEFAULT_MODEL=orchestrator-Qwen2.5-72B-Instruct-Q4_K_M
+#       - LETTA_EMBEDDING_ENDPOINT=http://gateway:8080/v1
+#       - LETTA_EMBEDDING_MODEL=utility-Carnice-9b-Q8_0
+#     volumes:
+#       - letta-data:/var/lib/letta
+#     depends_on:
+#       - gateway
+#     ports:
+#       - "8283:8080"
+
+#   open-webui:
+#     image: ghcr.io/open-webui/open-webui:main
+#     container_name: open-webui
+#     restart: unless-stopped
+#     environment:
+#       - OPENAI_API_BASE_URL=http://gateway:8080/v1
+#       - OPENAI_API_KEY=strix-local
+#       - WEBUI_AUTH=True
+#       - ENABLE_OAUTH_SIGNUP=True
+#     volumes:
+#       - open-webui-data:/app/backend/data
+#     depends_on:
+#       - gateway
+#     ports:
+#       - "3000:8080"
+
+# volumes:
+#   open-webui-data:
+#   letta-data:
+
+# services:
+#   strix-backend:
+#     image: kyuz0/amd-strix-halo-toolboxes:rocm-7.2.3
+#     container_name: strix-backend
+#     restart: unless-stopped
+#     devices:
+#       - /dev/kfd:/dev/kfd
+#       - /dev/dri:/dev/dri
+#     group_add:
+#       - "44"
+#       - "992"
+#     security_opt:
+#       - seccomp=unconfined
+#     environment:
+#       - HSA_OVERRIDE_GFX_VERSION=11.5.1
+#       - GGML_CUDA_ENABLE_UNIFIED_MEMORY=0
+#     volumes:
+#       - ~/Desktop/models:/models
+#       - ./models.ini:/models.ini
+#     command:
+#       - llama-server
+#       - --models-preset
+#       - /models.ini
+#       - --host
+#       - 0.0.0.0
+#       - --port
+#       - "8080"
+#       - --models-max 
+#       - "3"
+#     ports:
+#       - "8081:8080"
+
+#   open-webui:
+#     image: ghcr.io/open-webui/open-webui:main
+#     container_name: open-webui
+#     restart: unless-stopped
+#     environment:
+#       - OPENAI_API_BASE_URL=http://strix-backend:8080/v1
+#       - OPENAI_API_KEY=strix-local
+#       - WEBUI_AUTH=True
+#       - ENABLE_OAUTH_SIGNUP=True
+#     volumes:
+#       - open-webui-data:/app/backend/data
+#     depends_on:
+#       - strix-backend
+#     ports:
+#       - "3000:8080"
+
+# volumes:
+#   open-webui-data:

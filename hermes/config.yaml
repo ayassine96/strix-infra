@@ -1,0 +1,25 @@
+model:
+  provider: custom
+  base_url: http://gateway:8080/v1
+  api_key: strix-local
+  model: dev-Qwen3-Coder-30B-A3B-Instruct-UD-Q4_K_XL
+  context_length: 16384
+
+terminal:
+  backend: local
+
+tools:
+  browser:
+    provider: local
+  tts:
+    provider: kittentts
+  image_gen:
+    enabled: false
+  web_search:
+    enabled: false
+
+settings:
+  max_iterations: 150
+  tool_progress: all
+  compression_threshold: 0.50
+  session_reset: never

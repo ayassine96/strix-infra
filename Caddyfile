@@ -1,0 +1,7 @@
+ali-ws1.ts.net {
+    # Route API calls to the inference engine
+    reverse_proxy /v1/* strix-backend:8080
+    
+    # Route everything else to the WebUI
+    reverse_proxy /* open-webui:8080
+}

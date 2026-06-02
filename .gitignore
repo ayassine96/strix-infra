@@ -1,0 +1,22 @@
+# Models (large binaries)
+~/Desktop/models/
+
+# Docker volumes (runtime data, not committed)
+ollama_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
