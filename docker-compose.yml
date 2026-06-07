@@ -90,7 +90,7 @@ services:
       start_period: 120s
 
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    build: ./open-webui
     container_name: open-webui
     restart: unless-stopped
     environment:
@@ -98,8 +98,12 @@ services:
       - OPENAI_API_KEY=strix-local
       - WEBUI_AUTH=True
       - ENABLE_OAUTH_SIGNUP=True
-      - ENABLE_SEARCH_QUERY=True
+      - ENABLE_WEB_SEARCH=True
+      - WEB_SEARCH_ENGINE=searxng
+      - WEB_SEARCH_TRUST_ENV=True
       - SEARXNG_QUERY_URL=http://host.docker.internal:8080/search?format=json
+      - WEB_LOADER_ENGINE=playwright
+      - BYPASS_WEB_SEARCH_WEB_LOADER=True
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
