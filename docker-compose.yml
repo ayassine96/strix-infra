@@ -98,6 +98,10 @@ services:
       - OPENAI_API_KEY=strix-local
       - WEBUI_AUTH=True
       - ENABLE_OAUTH_SIGNUP=True
+      - ENABLE_SEARCH_QUERY=True
+      - SEARXNG_QUERY_URL=http://host.docker.internal:8080/search?format=json
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - open-webui-data:/app/backend/data
     depends_on:

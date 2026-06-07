@@ -12,7 +12,7 @@ services:
       - ${SEARXNG_HOST:+${SEARXNG_HOST}:}${SEARXNG_PORT:-8080}:${SEARXNG_PORT:-8080}
     env_file: ./.env
     volumes:
-      - ./core-config/:/etc/searxng/:Z
+      - ./searxng/settings.override.yml:/etc/searxng/settings.yml:Z
       - core-data:/var/cache/searxng/
 
   valkey:
